@@ -4,9 +4,9 @@
 .PHONY: help install test test-cov lint format clean docker-build docker-run docker-stop db-init db-reset dev prod
 
 # Переменные
-PYTHON = python
-PIP = pip
-PYTEST = pytest
+PYTHON = python3
+PIP = venv/bin/pip
+PYTEST = venv/bin/pytest
 DOCKER = docker
 DOCKER_COMPOSE = docker-compose
 PROJECT_NAME = habrdigest
