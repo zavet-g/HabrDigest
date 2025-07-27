@@ -64,6 +64,10 @@ class DatabaseService:
         """Получение темы по slug"""
         return self.db.query(Topic).filter(Topic.slug == slug).first()
     
+    def get_topic_by_id(self, topic_id: int) -> Optional[Topic]:
+        """Получение темы по ID"""
+        return self.db.query(Topic).filter(Topic.id == topic_id).first()
+    
     def create_topic(self, name: str, slug: str, description: str = None) -> Topic:
         """Создание новой темы"""
         topic = Topic(

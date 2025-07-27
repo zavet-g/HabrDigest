@@ -138,60 +138,18 @@ def process_unprocessed_articles():
 def send_digests_to_users():
     """Задача для отправки дайджестов пользователям"""
     try:
-        db = SessionLocal()
+        logger.info("Starting digest sending task")
         
-        # Получаем активных пользователей с подписками
-        users_with_subs = db.query(User).join(Subscription).filter(
-            User.is_active == True,
-            Subscription.is_active == True
-        ).distinct().all()
+        # Импортируем сервис дайджестов
+        from app.services.digest_service import digest_service
         
-        if not users_with_subs:
-            logger.info("No users with active subscriptions found")
-            return
+        # Отправляем дайджесты всем пользователям
+        stats = asyncio.run(digest_service.send_digest_to_all_users())
         
-        logger.info(f"Sending digests to {len(users_with_subs)} users...")
-        
-        for user in users_with_subs:
-            try:
-                # Получаем подписки пользователя
-                subscriptions = db.query(Subscription).filter(
-                    Subscription.user_id == user.id,
-                    Subscription.is_active == True
-                ).all()
-                
-                for subscription in subscriptions:
-                    # Проверяем, нужно ли отправлять дайджест
-                    if not _should_send_digest(subscription):
-                        continue
-                    
-                    # Получаем новые статьи для темы
-                    articles = _get_new_articles_for_user(user.id, subscription.topic_id, db)
-                    
-                    if articles:
-                        # Отправляем дайджест
-                        asyncio.run(send_digest_to_user(
-                            telegram_id=user.telegram_id,
-                            articles=articles,
-                            topic_name=subscription.topic.name
-                        ))
-                        
-                        # Отмечаем статьи как отправленные
-                        _mark_articles_as_sent(user.id, [a['id'] for a in articles], db)
-                        
-                        logger.info(f"Sent digest to user {user.telegram_id} for topic {subscription.topic.name}")
-                
-            except Exception as e:
-                logger.error(f"Error sending digest to user {user.telegram_id}: {e}")
-                continue
-        
-        logger.info("Digest sending completed")
+        logger.info(f"Digest sending task completed: {stats}")
         
     except Exception as e:
         logger.error(f"Error in send_digests_to_users task: {e}")
-    finally:
-        if 'db' in locals():
-            db.close()
 
 
 def _should_send_digest(subscription: Subscription) -> bool:
