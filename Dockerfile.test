@@ -1,0 +1,33 @@
+FROM python:3.13-slim
+
+# Устанавливаем системные зависимости
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libpq-dev \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем файлы зависимостей
+COPY pyproject.toml .
+
+# Устанавливаем Python зависимости (включая dev зависимости)
+RUN pip install --no-cache-dir -e ".[dev]"
+
+# Копируем исходный код
+COPY . .
+
+# Создаем директорию для логов
+RUN mkdir -p logs
+
+# Создаем пользователя для безопасности
+RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+
+# Переключаемся на пользователя app
+USER app
+
+# Команда по умолчанию для запуска тестов
+CMD ["pytest", "-v", "--cov=app", "--cov-report=term-missing", "--cov-report=html"] 

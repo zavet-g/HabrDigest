@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # Тестовая база данных PostgreSQL
+  test_postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: habrdigest_test
+      POSTGRES_USER: habrdigest_user
+      POSTGRES_PASSWORD: habrdigest_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+    networks:
+      - habrdigest_test_network
+
+  # Тестовый Redis
+  test_redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - habrdigest_test_network
+
+  # Сервис для запуска тестов
+  test_runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      # Тестовая база данных
+      DATABASE_URL: postgresql://habrdigest_user:habrdigest_password@test_postgres:5432/habrdigest_test
+      ASYNC_DATABASE_URL: postgresql+psycopg://habrdigest_user:habrdigest_password@test_postgres:5432/habrdigest_test
+      
+      # Тестовый Redis
+      REDIS_URL: redis://test_redis:6379/0
+      
+      # Тестовые настройки
+      TESTING: "true"
+      LOG_LEVEL: "DEBUG"
+      
+      # Telegram бот (тестовый токен)
+      TELEGRAM_BOT_TOKEN: "test_token"
+      
+      # Yandex GPT (тестовые настройки)
+      YANDEX_API_KEY: "test_key"
+      YANDEX_FOLDER_ID: "test_folder"
+    depends_on:
+      - test_postgres
+      - test_redis
+    volumes:
+      - ./htmlcov:/app/htmlcov
+      - ./logs:/app/logs
+    networks:
+      - habrdigest_test_network
+    command: >
+      sh -c "
+        echo 'Waiting for PostgreSQL...' &&
+        while ! nc -z test_postgres 5432; do sleep 1; done &&
+        echo 'Waiting for Redis...' &&
+        while ! nc -z test_redis 6379; do sleep 1; done &&
+        echo 'Running tests...' &&
+        pytest -v --cov=app --cov-report=term-missing --cov-report=html --cov-report=xml
+      "
+
+  # Сервис для запуска только unit тестов
+  unit_tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      TESTING: "true"
+      LOG_LEVEL: "DEBUG"
+    volumes:
+      - ./htmlcov:/app/htmlcov
+      - ./logs:/app/logs
+    networks:
+      - habrdigest_test_network
+    command: >
+      sh -c "
+        echo 'Running unit tests...' &&
+        pytest -v --cov=app --cov-report=term-missing --cov-report=html tests/test_database_service.py
+      "
+
+  # Сервис для запуска только API тестов
+  api_tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      # Тестовая база данных
+      DATABASE_URL: postgresql://habrdigest_user:habrdigest_password@test_postgres:5432/habrdigest_test
+      ASYNC_DATABASE_URL: postgresql+psycopg://habrdigest_user:habrdigest_password@test_postgres:5432/habrdigest_test
+      
+      # Тестовый Redis
+      REDIS_URL: redis://test_redis:6379/0
+      
+      # Тестовые настройки
+      TESTING: "true"
+      LOG_LEVEL: "DEBUG"
+      
+      # Telegram бот (тестовый токен)
+      TELEGRAM_BOT_TOKEN: "test_token"
+      
+      # Yandex GPT (тестовые настройки)
+      YANDEX_API_KEY: "test_key"
+      YANDEX_FOLDER_ID: "test_folder"
+    depends_on:
+      - test_postgres
+      - test_redis
+    volumes:
+      - ./htmlcov:/app/htmlcov
+      - ./logs:/app/logs
+    networks:
+      - habrdigest_test_network
+    command: >
+      sh -c "
+        echo 'Waiting for PostgreSQL...' &&
+        while ! nc -z test_postgres 5432; do sleep 1; done &&
+        echo 'Waiting for Redis...' &&
+        while ! nc -z test_redis 6379; do sleep 1; done &&
+        echo 'Running API tests...' &&
+        pytest -v --cov=app --cov-report=term-missing --cov-report=html tests/test_api.py
+      "
+
+volumes:
+  test_postgres_data:
+
+networks:
+  habrdigest_test_network:
+    driver: bridge 
