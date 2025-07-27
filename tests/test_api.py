@@ -34,7 +34,7 @@ class TestAPI:
         
         data = response.json()
         assert data["status"] == "healthy"
-        assert data["database"] == "postgresql"
+        assert data["database"] == "postgresql"  # API всегда возвращает postgresql
         assert "timestamp" in data
     
     def test_get_statistics(self, client, db_session):

@@ -13,20 +13,13 @@ from app.core.config import settings
 from main import app
 
 
-# Определяем URL базы данных для тестов
-# В Docker используем PostgreSQL, локально - SQLite
-if os.getenv("TESTING") == "true":
-    # В Docker контейнере используем PostgreSQL
-    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://habrdigest_user:habrdigest_password@test_postgres:5432/habrdigest_test")
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
-else:
-    # Локально используем SQLite в памяти
-    SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+# Всегда используем SQLite в памяти для быстрого тестирования
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
