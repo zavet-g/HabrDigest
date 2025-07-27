@@ -25,13 +25,12 @@ help: ## Показать справку по командам
 
 install: ## Установить зависимости
 	@echo "$(GREEN)Устанавливаю зависимости...$(NC)"
-	$(PIP) install -r requirements.txt
+	$(PIP) install -e .
 	@echo "$(GREEN)Зависимости установлены!$(NC)"
 
 install-dev: ## Установить зависимости для разработки
 	@echo "$(GREEN)Устанавливаю зависимости для разработки...$(NC)"
-	$(PIP) install -r requirements.txt
-	$(PIP) install pytest pytest-cov pytest-asyncio black isort flake8
+	$(PIP) install -e ".[dev]"
 	@echo "$(GREEN)Зависимости для разработки установлены!$(NC)"
 
 test: ## Запустить тесты

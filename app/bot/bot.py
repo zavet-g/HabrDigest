@@ -1,26 +1,29 @@
-from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from telegram.constants import ParseMode
 from loguru import logger
 
 from app.core.config import settings
-from app.bot.handlers import router
+from app.bot.handlers import setup_handlers
 
 
 class HabrDigestBot:
     """Основной класс Telegram бота"""
     
     def __init__(self):
-        self.bot = Bot(token=settings.telegram_bot_token, parse_mode=ParseMode.HTML)
-        self.dp = Dispatcher()
+        self.bot = Bot(token=settings.telegram_bot_token)
+        self.application = Application.builder().token(settings.telegram_bot_token).build()
         
-        # Регистрируем роутеры
-        self.dp.include_router(router)
+        # Регистрируем обработчики
+        setup_handlers(self.application)
     
     async def start(self):
         """Запуск бота"""
         try:
             logger.info("Starting HabrDigest bot...")
-            await self.dp.start_polling(self.bot)
+            await self.application.initialize()
+            await self.application.start()
+            await self.application.updater.start_polling()
         except Exception as e:
             logger.error(f"Error starting bot: {e}")
             raise
@@ -29,7 +32,9 @@ class HabrDigestBot:
         """Остановка бота"""
         try:
             logger.info("Stopping HabrDigest bot...")
-            await self.bot.session.close()
+            await self.application.updater.stop()
+            await self.application.stop()
+            await self.application.shutdown()
         except Exception as e:
             logger.error(f"Error stopping bot: {e}")
 
@@ -62,6 +67,7 @@ async def send_digest_to_user(telegram_id: int, articles: list, topic_name: str 
         await bot_instance.bot.send_message(
             chat_id=telegram_id,
             text=message_text,
+            parse_mode=ParseMode.HTML,
             disable_web_page_preview=True
         )
         
@@ -76,7 +82,8 @@ async def send_error_notification(telegram_id: int, error_message: str):
     try:
         await bot_instance.bot.send_message(
             chat_id=telegram_id,
-            text=f"❌ Произошла ошибка: {error_message}"
+            text=f"❌ Произошла ошибка: {error_message}",
+            parse_mode=ParseMode.HTML
         )
     except Exception as e:
         logger.error(f"Error sending error notification: {e}") 
