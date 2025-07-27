@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных
+  postgres:
+    image: postgres:15
+    container_name: habrdigest_postgres
+    environment:
+      POSTGRES_DB: habrdigest
+      POSTGRES_USER: habrdigest_user
+      POSTGRES_PASSWORD: habrdigest_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - habrdigest_network
+    restart: unless-stopped
+
+  # Redis для Celery
+  redis:
+    image: redis:7-alpine
+    container_name: habrdigest_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - habrdigest_network
+    restart: unless-stopped
+
+  # Основное приложение
+  app:
+    build: .
+    container_name: habrdigest_app
+    environment:
+      - DATABASE_URL=postgresql://habrdigest_user:habrdigest_password@postgres:5432/habrdigest
+      - ASYNC_DATABASE_URL=postgresql+asyncpg://habrdigest_user:habrdigest_password@postgres:5432/habrdigest
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - habrdigest_network
+    restart: unless-stopped
+    command: python main.py
+
+  # Celery worker
+  celery_worker:
+    build: .
+    container_name: habrdigest_celery_worker
+    environment:
+      - DATABASE_URL=postgresql://habrdigest_user:habrdigest_password@postgres:5432/habrdigest
+      - ASYNC_DATABASE_URL=postgresql+asyncpg://habrdigest_user:habrdigest_password@postgres:5432/habrdigest
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - habrdigest_network
+    restart: unless-stopped
+    command: celery -A celery_app.celery_app worker --loglevel=info
+
+  # Celery beat (планировщик)
+  celery_beat:
+    build: .
+    container_name: habrdigest_celery_beat
+    environment:
+      - DATABASE_URL=postgresql://habrdigest_user:habrdigest_password@postgres:5432/habrdigest
+      - ASYNC_DATABASE_URL=postgresql+asyncpg://habrdigest_user:habrdigest_password@postgres:5432/habrdigest
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - habrdigest_network
+    restart: unless-stopped
+    command: celery -A celery_app.celery_app beat --loglevel=info
+
+  # Nginx (опционально, для продакшена)
+  nginx:
+    image: nginx:alpine
+    container_name: habrdigest_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - habrdigest_network
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  habrdigest_network:
+    driver: bridge 
