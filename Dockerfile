@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Устанавливаем системные зависимости
 RUN apt-get update && apt-get install -y \
@@ -11,10 +11,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Копируем файлы зависимостей
-COPY requirements.txt .
+COPY pyproject.toml .
 
 # Устанавливаем Python зависимости
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -e .
 
 # Копируем исходный код
 COPY . .

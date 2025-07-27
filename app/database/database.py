@@ -8,8 +8,11 @@ from app.core.config import settings
 engine = create_engine(settings.database_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Асинхронное подключение
-async_engine = create_async_engine(settings.async_database_url)
+# Асинхронное подключение с psycopg
+async_engine = create_async_engine(
+    settings.async_database_url.replace("asyncpg", "psycopg"),
+    echo=False
+)
 AsyncSessionLocal = sessionmaker(
     async_engine, class_=AsyncSession, expire_on_commit=False
 )
