@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.database.database import create_tables
 from app.bot.bot import bot_instance
 from celery_app.tasks import add_default_topics
+from app.api.database import router as database_router
 
 
 # Настройка логирования
@@ -31,6 +32,9 @@ app = FastAPI(
     description="AI-ассистент для IT-статей с Хабра",
     version="1.0.0"
 )
+
+# Подключаем роутеры
+app.include_router(database_router)
 
 
 @app.on_event("startup")
