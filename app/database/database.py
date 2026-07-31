@@ -1,21 +1,15 @@
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+
 from app.core.config import settings
 
-# Синхронное подключение
 engine = create_engine(settings.database_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Асинхронное подключение с psycopg
-async_engine = create_async_engine(
-    settings.async_database_url.replace("asyncpg", "psycopg"),
-    echo=False
-)
-AsyncSessionLocal = sessionmaker(
-    async_engine, class_=AsyncSession, expire_on_commit=False
-)
+async_engine = create_async_engine(settings.async_database_url, echo=False)
+AsyncSessionLocal = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
 
@@ -41,4 +35,5 @@ async def get_async_db():
 def create_tables():
     """Создание всех таблиц"""
     from app.database.models import Base
-    Base.metadata.create_all(bind=engine) 
+
+    Base.metadata.create_all(bind=engine)

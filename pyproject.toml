@@ -7,56 +7,26 @@ name = "habrdigest"
 version = "1.0.0"
 description = "AI-ассистент для автоматического парсинга IT-статей с Хабра, генерации кратких резюме и отправки через Telegram-бота"
 authors = [
-    {name = "HabrDigest Team", email = "team@habrdigest.com"}
+    {name = "Artem Bukarev"}
 ]
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.9"
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-]
-
+requires-python = ">=3.11"
 dependencies = [
-    # FastAPI и веб-фреймворки
     "fastapi>=0.109.0,<0.110.0",
     "uvicorn[standard]>=0.27.0,<0.28.0",
     "pydantic>=2.5.0,<3.0.0",
     "pydantic-settings>=2.1.0,<3.0.0",
-    
-    # База данных
     "sqlalchemy>=2.0.23,<3.0.0",
     "alembic>=1.13.0,<2.0.0",
-    "psycopg2-binary>=2.9.9,<3.0.0",
     "psycopg[binary,pool]>=3.1.0,<4.0.0",
-    
-    # Telegram бот (используем python-telegram-bot вместо aiogram для лучшей совместимости)
     "python-telegram-bot>=21.0,<22.0",
-    
-    # Парсинг
     "aiohttp>=3.9.1,<4.0.0",
     "beautifulsoup4>=4.12.2,<5.0.0",
-    "html5lib>=1.1,<2.0",  # Альтернатива lxml
-    
-    # Yandex GPT
-    "yandexcloud>=0.227.0,<1.0.0",
-    
-    # Очереди и фоновые задачи
     "celery>=5.3.4,<6.0.0",
     "redis>=5.0.1,<6.0.0",
-    
-    # Утилиты
     "python-dotenv>=1.0.0,<2.0.0",
     "httpx>=0.27.0,<0.28.0",
     "loguru>=0.7.2,<1.0.0",
-    "schedule>=1.2.0,<2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -64,9 +34,7 @@ dev = [
     "pytest>=7.4.3,<8.0.0",
     "pytest-asyncio>=0.21.1,<1.0.0",
     "pytest-cov>=4.1.0,<5.0.0",
-    "black>=23.11.0,<24.0.0",
-    "isort>=5.12.0,<6.0.0",
-    "flake8>=6.1.0,<7.0.0",
+    "ruff>=0.16.0,<0.17.0",
     "mypy>=1.7.0,<2.0.0",
 ]
 
@@ -91,32 +59,53 @@ Issues = "https://github.com/zavet-g/HabrDigest/issues"
 where = ["."]
 include = ["app*", "celery_app*", "migrations*"]
 
-[tool.black]
+[tool.ruff]
 line-length = 100
-target-version = ['py39', 'py310', 'py311', 'py312', 'py313']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
+target-version = "py311"
 
-[tool.isort]
-profile = "black"
-line_length = 100
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "I",
+    "N",
+    "UP",
+    "B",
+    "A",
+    "C4",
+    "T20",
+    "SIM",
+    "RUF",
+    "ARG",
+    "BLE",
+    "SLF",
+]
+ignore = [
+    "E501",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["SLF001", "ARG001", "ARG002"]
+"migrations/*" = ["E402"]
+"app/api/routes.py" = ["BLE001"]
+"app/bot/*.py" = ["BLE001", "ARG001"]
+"app/services/digest_service.py" = ["BLE001"]
+"celery_app/tasks.py" = ["BLE001"]
+"main.py" = ["BLE001"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Path",
+    "fastapi.Query",
+]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
