@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install --no-cache-dir ruff==0.16.1
+
+      - name: Ruff check
+        run: ruff check app tests main.py celery_app migrations --output-format=github
+
+      - name: Ruff format check
+        run: ruff format --check app tests main.py celery_app migrations
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: habrdigest_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/habrdigest_test
+      ASYNC_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/habrdigest_test
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
+      TELEGRAM_BOT_TOKEN: ci_test_token
+      YANDEX_API_KEY: ci_test_key
+      YANDEX_FOLDER_ID: ci_test_folder
+      SECRET_KEY: ci_test_secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv pip install ".[dev]"
+
+      - name: Run migrations
+        run: uv run alembic upgrade head
+
+      - name: Run tests
+        run: uv run pytest tests/ -q --cov=app --cov-report=term-missing

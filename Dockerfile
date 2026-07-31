@@ -1,33 +1,44 @@
-FROM python:3.13-slim
+FROM python:3.11-slim AS builder
 
-# Устанавливаем системные зависимости
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libpq-dev \
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем рабочую директорию
+RUN pip install --no-cache-dir uv==0.5.*
+
 WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY app ./app
+RUN uv venv /opt/venv && VIRTUAL_ENV=/opt/venv uv pip install --no-cache .
 
-# Копируем файлы зависимостей
-COPY pyproject.toml .
+FROM python:3.11-slim AS runtime
 
-# Устанавливаем Python зависимости
-RUN pip install --no-cache-dir -e .
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH"
 
-# Копируем исходный код
-COPY . .
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1000 app
 
-# Создаем директорию для логов
-RUN mkdir -p logs
+COPY --from=builder /opt/venv /opt/venv
 
-# Создаем пользователя для безопасности
-RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+WORKDIR /app
+COPY --chown=app:app app ./app
+COPY --chown=app:app celery_app ./celery_app
+COPY --chown=app:app migrations ./migrations
+COPY --chown=app:app main.py alembic.ini ./
+
 USER app
-
-# Открываем порт
 EXPOSE 8000
 
-# Команда по умолчанию
-CMD ["python", "main.py"] 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/database/health')"
+
+CMD ["python", "main.py"]
