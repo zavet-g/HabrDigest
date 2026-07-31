@@ -1,1 +1,0 @@
-# HabrDigest Application Package 

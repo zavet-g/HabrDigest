@@ -193,7 +193,7 @@ setup: ## Полная настройка проекта
 # Windows команды (если используется PowerShell)
 win-install: ## Установить зависимости (Windows)
 	@echo "$(GREEN)Устанавливаю зависимости (Windows)...$(NC)"
-	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -e ".[dev]"
 	@echo "$(GREEN)Зависимости установлены!$(NC)"
 
 win-test: ## Запустить тесты (Windows)
